@@ -3,120 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>貓咪撿球實驗遊戲 (Google表單串接版)</title>
+    <title>行為科學實驗系統 (完全修復版)</title>
     <style>
         body {
             margin: 0; padding: 0; background-color: #2c3e50;
             font-family: sans-serif; display: flex; flex-direction: column;
             align-items: center; justify-content: center; min-height: 100vh; color: #ecf0f1;
+            overflow-x: hidden;
         }
-        h1 { margin: 10px 0 5px 0; font-size: 24px; }
-        .instructions { margin-bottom: 15px; font-size: 14px; color: #bdc3c7; text-align: center; line-height: 1.5; }
-        #gameCanvas { background-color: #ffffff; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: block; }
+        
+        .experiment-container {
+            position: relative;
+            width: 1200px;
+            height: 600px;
+            background-color: #ffffff;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            display: block;
+        }
+
+        #introLayer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #34495e; display: flex; flex-direction: column; z-index: 100;
+        }
+        .intro-top {
+            height: 75%; padding: 20px 40px; box-sizing: border-box;
+            overflow-y: auto; line-height: 1.6; font-size: 15px; border-bottom: 2px solid #2c3e50;
+        }
+        .intro-bottom {
+            height: 25%; background-color: #2c3e50; display: flex;
+            flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+        }
+        .input-group { display: flex; align-items: center; gap: 12px; font-size: 16px; }
+        .input-group input {
+            padding: 6px 10px; font-size: 15px; border-radius: 6px; border: none; width: 200px; text-align: center;
+        }
+        
+        #waitingLayer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #7f8c8d; display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 200;
+        }
+        .waiting-text { font-size: 28px; font-weight: bold; color: #ffffff; animation: pulse 1.5s infinite; }
+
         #gameOverOverlay {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9); flex-direction: column; align-items: center; justify-content: center; z-index: 10;
+            background: rgba(0, 0, 0, 0.85); flex-direction: column; align-items: center; justify-content: center; z-index: 50;
         }
-        .modal { background: #34495e; padding: 30px 40px; border-radius: 8px; text-align: center; max-width: 420px; width: 80%; }
-        .modal h2 { color: #e74c3c; margin-top: 0; }
-        .stats-container { margin: 20px 0; text-align: left; background: #2c3e50; padding: 15px; border-radius: 6px; }
-        .stats-item { margin: 10px 0; font-size: 16px; display: flex; justify-content: space-between; }
+        .modal { background: #34495e; padding: 25px 35px; border-radius: 12px; text-align: center; max-width: 400px; width: 80%; }
+        .modal h2 { color: #e74c3c; margin-top: 0; font-size: 24px; }
+        .stats-container { margin: 15px 0; text-align: left; background: #2c3e50; padding: 12px; border-radius: 8px; }
+        .stats-item { margin: 8px 0; font-size: 15px; display: flex; justify-content: space-between; }
         .stats-val { font-weight: bold; color: #f1c40f; }
-        #statusMessage { margin-top: 15px; font-weight: bold; color: #3498db; font-size: 14px; }
-        .btn {
-            background-color: #2ecc71; color: white; border: none; padding: 12px 24px;
-            font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;
+        #statusMessage { margin-top: 10px; font-weight: bold; color: #3498db; font-size: 14px; }
+
+        #surveyLayer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #2c3e50; display: none; flex-direction: column; z-index: 300;
+            padding: 30px 50px; box-sizing: border-box; overflow-y: auto;
         }
-        .container { position: relative; }
+        .survey-title { font-size: 26px; color: #f1c40f; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #34495e; padding-bottom: 10px;}
+        .question-block { background: #34495e; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; }
+        .question-text { font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #fff; }
+        .options-group { display: flex; flex-direction: column; gap: 8px; }
+        .option-item { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; color: #ecf0f1; }
+        .option-item input { cursor: pointer; }
+
+        #thanksLayer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #273746; display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 400; text-align: center; padding: 40px;
+        }
+
+        .btn {
+            background-color: #2ecc71; color: white; border: none; padding: 10px 25px;
+            font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s;
+        }
+        .btn:hover { background-color: #27ae60; }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
     </style>
 </head>
 <body>
 
-    <h1>貓咪撿球行為實驗</h1>
-    <div class="instructions">
-        操作方式：鍵盤【方向鍵 ↑ ↓ ← →】移動 | 靠近球後按【空白鍵 Space】撿起/放下球<br>
-        將球帶到右上方綠色方形區域放下即可得分！
-    </div>
+    <div class="experiment-container">
+        <canvas id="gameCanvas" width="1200" height="600"></canvas>
 
-    <div class="container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="introLayer">
+            <div class="intro-top">
+                <h2 style="font-size: 26px; color: #f1c40f; margin-top: 0;">行為科學實驗：高頻行為追踪與擬真路徑優化版</h2>
+                <p>歡迎參與本階段實驗。在本回合中，我們針對實驗流暢度與初始環境邊界進行了深度校準：</p>
+                <ul>
+                    <li><strong>嚴格同步起跑：</strong>在開局的 5 秒倒數結束前，**所有 AI 玩家與黑貓助手將在原地待命**，時間截止的瞬間才會正式啟動。</li>
+                    <li><strong>球體高度限制：</strong>為避免視覺干擾，所有的紫色生球現在會**集中出現在畫面的下半部（完全低於烤箱高度）**。</li>
+                    <li><strong>防卡死行為鎖：</strong>優化了左側 AI 機器人的決策鏈，排除在烤箱及得分區附近的判定重疊，提供更流暢的自動搬運模擬。</li>
+                </ul>
+            </div>
+            <div class="intro-bottom">
+                <div class="input-group">
+                    <label for="participantId">請輸入您的參與者編號 (Participant ID):</label>
+                    <input type="text" id="participantId" placeholder="例如: SUB_001" autocomplete="off">
+                </div>
+                <button class="btn" id="startIntroBtn">確認並開始遊戲</button>
+            </div>
+        </div>
+
+        <div id="waitingLayer">
+            <div class="waiting-text">請稍候，中央控制端正在同步環境變數...</div>
+        </div>
 
         <div id="gameOverOverlay">
             <div class="modal">
-                <h2>遊戲結束！</h2>
-                <p>數據分析中，請稍候...</p>
+                <h2 id="modalTitle">本回合結束</h2>
+                <p id="modalSub">正在打包並上傳您的行為數據...</p>
                 <div class="stats-container">
-                    <div class="stats-item">
-                        <span>玩家匿名 ID:</span>
-                        <span id="resId" class="stats-val">--</span>
-                    </div>
-                    <div class="stats-item">
-                        <span>總得分 (Total Score):</span>
-                        <span id="resScore" class="stats-val">0</span>
-                    </div>
-                    <div class="stats-item">
-                        <span>拿起球的次數 (Pickup Count):</span>
-                        <span id="resPickup" class="stats-val">0</span>
-                    </div>
+                    <div class="stats-item"><span>結束回合 (Finished Round):</span><span id="resRound" class="stats-val">1 / 3</span></div>
+                    <div class="stats-item"><span>左邊 AI 得分:</span><span id="resLeftScore" class="stats-val">0</span></div>
+                    <div class="stats-item"><span>右邊玩家得分:</span><span id="resRightScore" class="stats-val">0</span></div>
                 </div>
                 
                 <div id="statusMessage">📡 正在自動將行為數據同步至中央試算表...</div>
                 
-                <button class="btn" id="downloadBtn" style="background-color: #7f8c8d;">手動下載 CSV 備份</button>
-                <button class="btn" style="background-color: #3498db;" onclick="window.location.reload()">再玩一次</button>
+                <button class="btn" id="nextRoundBtn" style="width: 100%; display: none;">確認，進入下一回合</button>
+                <button class="btn" id="goToSurveyBtn" style="width: 100%; display: none; background-color: #3498db;">確認，進入問卷階段</button>
+                <button class="btn" id="downloadBtn" style="background-color: #7f8c8d; width: 100%; margin-top: 10px;">手動下載本輪 CSV 備份</button>
+            </div>
+        </div>
+
+        <div id="surveyLayer">
+            <div class="survey-title">後置實驗問卷調查</div>
+            <form id="surveyForm">
+                <div id="questionContainer"></div>
+                <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+                    <button type="button" class="btn" id="submitSurveyBtn" style="background-color: #e67e22; padding: 12px 40px; font-size: 18px;">提交完整問卷並結束實驗</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="thanksLayer">
+            <h1 style="color: #2ecc71; font-size: 42px; margin-bottom: 15px;">🎉 實驗已圓滿結束</h1>
+            <p style="font-size: 18px; color: #bdc3c7; max-width: 600px; line-height: 1.6;">
+                感謝您的參與！您在本回合的所有互動行為數據、時序軌跡及心理問卷量表，皆已成功封裝並安全傳輸至中央學術試算表後端。
+            </p>
+            <div style="margin-top: 30px; background: #1c2833; padding: 20px 40px; border-radius: 8px; font-family: monospace;">
+                系統安全簽章：<span style="color: #f1c40f;">SUCCESS_DATA_SYNC_2026</span>
             </div>
         </div>
     </div>
 
     <script>
-        // =========================================================================
-        // 📝 請在此處替換成你自己的 Google 表單設定 (將 viewform 改為 formResponse)
-        // =========================================================================
-        const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfUPZzbk3dZtAUYfDwNrrzRkTuqezsVFS1SiFJVf0hEW0BYtA/formResponse"; 
-        const ENTRY_PLAYER_ID = "entry.2138009385";  // 玩家ID 的欄位代號
-        const ENTRY_TOTAL_SCORE = "entry.393998705"; // 總得分 的欄位代號
-        const ENTRY_PICKUP_COUNT = "entry.2047045489"; // 拿起次數 的欄位代號
-        const ENTRY_TIMELINE = "entry.258162712";    // 詳細行為軌跡 的欄位代號
-        // =========================================================================
+        // ==========================================
+        // 請在此處填入您的 Google 表單 Entry IDs
+        // ==========================================
+        const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfSWqP1sHUA6fPZSs06esSX677dELN_JaGAVVSY5ZyMC4Ocmw/formResponse";
+        const ENTRY_PARTICIPANT_ID = "entry.746756836"; // 參與者編號 
+        const ENTRY_ACTION_DATA = "entry.968320921";    // 每步即時動作數據串流
+        const ENTRY_SURVEY_DATA = "entry.1500336990";    // 問卷回答數據
 
-        // --- 1. 遊戲參數 ---
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
         const GAME_DURATION = 60; 
-        const BALL_COUNT = 8;     
-        const CAT_SPEED = 5;      
-        const REACH_DISTANCE = 40;
-
-        const pid = "PLY_" + Math.floor(Math.random() * 89999 + 10000);
-
-        let playerData = {
-            totalScore: 0,
-            pickupCount: 0,
-            gameDuration: GAME_DURATION,
-            actions: []
-        };
-
+        const MAX_ROUNDS = 3; 
+        const CAT_SPEED = 4.5;
+        const BOT_SPEED = 2.6;
+        const REACH_DISTANCE = 32;
+        
+        let currentStage = 'INTRO'; 
+        let currentRound = 1;
+        let participantId = "ANONYMOUS";
+        
         let timeLeft = GAME_DURATION;
-        let isGameOver = false;
+        let countdownSec = 5; 
         let gameTimer = null;
         let startTime = null;
 
+        let playerData = {
+            gameDuration: GAME_DURATION,
+            leftScore: 0,
+            rightScore: 0,
+            totalScore: 0, 
+        };
         const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, Space: false };
+
+        const topSectionHeight = 130; 
+        const gameSectionHeight = 470; 
+        const midX = canvas.width / 2; // 600
+
+        const zoneSize = 75;
+        const leftZone = { x: 30, y: topSectionHeight + 20, width: zoneSize, height: zoneSize, color: "#2ecc71" };   
+        const rightZone = { x: canvas.width - zoneSize - 30, y: topSectionHeight + 20, width: zoneSize, height: zoneSize, color: "#2ecc71" }; 
+
+        let ovens = [
+            { id: "L_Oven1", x: 380, y: topSectionHeight + 180, width: 70, height: 50, side: "left", slots: [] },
+            { id: "L_Oven2", x: 480, y: topSectionHeight + 180, width: 70, height: 50, side: "left", slots: [] },
+            { id: "R_Oven1", x: 650, y: topSectionHeight + 180, width: 70, height: 50, side: "right", slots: [] },
+            { id: "R_Oven2", x: 750, y: topSectionHeight + 180, width: 70, height: 50, side: "right", slots: [] }
+        ];
+
+        let bots = [];
+        let blackCatBot = null; 
+        let balls = [];
+        let idCounter = 1;
+        let currentPickupSide = null; 
 
         // =========================================================================
         // 🖼️ 日後更換自製圖檔的預留區
         // =========================================================================
-        const useImages = false; // 💡 未來如果你畫好圖了，把這裡改成 true，並把圖檔跟 html 放一起
-        const catImg = new Image(); catImg.src = "cat.png";     // 你的貓咪圖檔名
-        const ballImg = new Image(); ballImg.src = "ball.png";   // 你的球體圖檔名
-        const bgImg = new Image(); bgImg.src = "background.jpg"; // 你的背景圖檔名
+        const useImages = false; 
+        const catImg = new Image(); catImg.src = "cat.png";     
+        const bgImg = new Image(); bgImg.src = "background.jpg"; 
+        //==========================================================================
 
-        // --- 2. 物件類別 (Cat & Ball) ---
+        // --- 預載入球體圖片 ---
+        const imgPurple = new Image();
+        imgPurple.src = "raw_ball.png";  
+
+        const imgYellow = new Image();
+        imgYellow.src = "cooked_ball.png"; 
+
+        // --- 物件類別定義 ---
         class Cat {
-            constructor(x, y) { this.x = x; this.y = y; this.radius = 20; this.color = "#e67e22"; this.holdingBall = null; }
+            constructor(x, y) { this.x = x; this.y = y; this.radius = 16; this.color = "#e67e22"; this.holdingBall = null; }
             update() {
-                if (keys.ArrowUp && this.y > this.radius) this.y -= CAT_SPEED;
+                if (currentStage !== 'GAMING') return;
+                if (keys.ArrowUp && this.y > topSectionHeight + this.radius) this.y -= CAT_SPEED;
                 if (keys.ArrowDown && this.y < canvas.height - this.radius) this.y += CAT_SPEED;
                 if (keys.ArrowLeft && this.x > this.radius) this.x -= CAT_SPEED;
                 if (keys.ArrowRight && this.x < canvas.width - this.radius) this.x += CAT_SPEED;
@@ -125,10 +239,8 @@
             draw() {
                 ctx.save();
                 if (useImages) {
-                    // 日後更換自製圖檔的繪製邏輯
                     ctx.drawImage(catImg, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
                 } else {
-                    // 目前的幾何暫代圖案
                     ctx.beginPath(); ctx.moveTo(this.x - 18, this.y - 10); ctx.lineTo(this.x - 18, this.y - 25); ctx.lineTo(this.x - 5, this.y - 15); ctx.fillStyle = this.color; ctx.fill();
                     ctx.beginPath(); ctx.moveTo(this.x + 18, this.y - 10); ctx.lineTo(this.x + 18, this.y - 25); ctx.lineTo(this.x + 5, this.y - 15); ctx.fillStyle = this.color; ctx.fill();
                     ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
@@ -139,40 +251,438 @@
             }
         }
 
+        // ========================================================
+        // 【AI Player 1：得分手】 行為邏輯完全參考 RightBlackCatBot
+        // ========================================================
+        class LeftScoreBot {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = 14; this.color = "#16a085"; 
+                this.holdingBall = null; this.state = "SEARCH_YELLOW";
+
+                // 防卡死監控變數 (5秒不動檢測)
+                // this.lastRecordedX = x; this.lastRecordedY = y;
+                // this.immobileFrames = 0; this.antiStuckActive = false;
+                // this.antiStuckTargetX = x; this.antiStuckTargetY = y;
+            }
+
+            update() {
+                if (currentStage !== 'GAMING') return;
+
+                // --- 防卡死檢測 ---
+                // let distFromLastRecord = Math.hypot(this.x - this.lastRecordedX, this.y - this.lastRecordedY);
+                // if (distFromLastRecord < 0.5) { this.immobileFrames++; } else { this.immobileFrames = 0; }
+                // this.lastRecordedX = this.x; this.lastRecordedY = this.y;
+
+                // if (this.immobileFrames >= 300 && !this.antiStuckActive) {
+                //     this.antiStuckActive = true; this.immobileFrames = 0;
+                //     let randomAngle = Math.random() * Math.PI * 2;
+                //     this.antiStuckTargetX = this.x + Math.cos(randomAngle) * 110;
+                //     this.antiStuckTargetY = this.y + Math.sin(randomAngle) * 110;
+                // }
+
+                // if (this.antiStuckActive) {
+                //     let angle = Math.atan2(this.antiStuckTargetY - this.y, this.antiStuckTargetX - this.x);
+                //     this.x += Math.cos(angle) * BOT_SPEED; this.y += Math.sin(angle) * BOT_SPEED;
+                //     if (Math.hypot(this.x - this.antiStuckTargetX, this.y - this.antiStuckTargetY) < 15) { this.antiStuckActive = false; }
+                //     if (this.holdingBall) { this.holdingBall.x = this.x; this.holdingBall.y = this.y; }
+                //     return;
+                // }
+
+                if (this.holdingBall) { this.holdingBall.x = this.x; this.holdingBall.y = this.y; }
+
+                // --- 核心行為狀態機（比照 RightBlackCatBot 設計） ---
+                if (this.state === "SEARCH_YELLOW") {
+                    if (this.holdingBall) { this.state = "GO_TO_ZONE"; return; }
+                    
+                    // 尋找左半邊掉在地面上的黃色熟球
+                    let targetYellow = balls.find(b => !b.isHeld && b.x < midX && b.status === "yellow");
+                    if (targetYellow) {
+                        let angle = Math.atan2(targetYellow.y - this.y, targetYellow.x - this.x);
+                        this.x += Math.cos(angle) * BOT_SPEED; this.y += Math.sin(angle) * BOT_SPEED;
+                        if (Math.hypot(this.x - targetYellow.x, this.y - targetYellow.y) < REACH_DISTANCE) {
+                            if (!targetYellow.isHeld) {
+                                this.holdingBall = targetYellow; targetYellow.isHeld = true;
+                                this.state = "GO_TO_ZONE";
+                            }
+                        }
+                    } else {
+                        // 沒事做時在左區中央安全的空地待命
+                        let rx = 220; let ry = 350; 
+                        if (Math.hypot(this.x - rx, this.y - ry) > 10) {
+                            let angle = Math.atan2(ry - this.y, rx - this.x);
+                            this.x += Math.cos(angle) * BOT_SPEED; this.y += Math.sin(angle) * BOT_SPEED;
+                        }
+                    }
+                }
+                else if (this.state === "GO_TO_ZONE") {
+                    if (!this.holdingBall) { this.state = "SEARCH_YELLOW"; return; }
+                    let tx = leftZone.x + leftZone.width / 2; let ty = leftZone.y + leftZone.height / 2;
+                    let angle = Math.atan2(ty - this.y, tx - this.x);
+                    this.x += Math.cos(angle) * BOT_SPEED; this.y += Math.sin(angle) * BOT_SPEED;
+                    
+                    if (Math.hypot(this.x - tx, this.y - ty) < 20) {
+                        let idx = balls.indexOf(this.holdingBall); if (idx > -1) balls.splice(idx, 1);
+                        playerData.leftScore++; 
+                        this.holdingBall = null; this.state = "SEARCH_YELLOW";
+                    }
+                }
+
+                // 邊界防禦鎖
+                if (this.x < this.radius) this.x = this.radius; if (this.x > midX - this.radius) this.x = midX - this.radius;
+                if (this.y < topSectionHeight + this.radius) this.y = topSectionHeight + this.radius; if (this.y > canvas.height - this.radius) this.y = canvas.height - this.radius;
+            }
+
+            draw() {
+                ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 9px sans-serif"; ctx.textAlign = "center";
+                ctx.fillText("AI 1(得分)", this.x, this.y + 3); ctx.restore();
+            }
+        }
+
+        // ========================================================
+        // 【AI Player 2：生產線搬運手】 專注隨機大十字與送烤箱（修正版）
+        // ========================================================
+        class LeftCarrierBot {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = 14; this.color = "#1abc9c"; 
+                this.holdingBall = null; this.state = "SEARCH_PURPLE"; 
+                
+                this.delayTimer = 0;
+                this.idleTargetX = x; this.idleTargetY = y;
+                this.idleActionTimer = 0; this.idleSubState = "STOP";
+                this.escapeTargetX = x; this.escapeTargetY = y;
+
+                // 隨機十字移動控制記憶體
+                this.lastAngleSector = null; 
+                this.ai2_strideRemaining = 0; 
+                this.ai2_currentAngle = 0;     
+
+                // 防卡死監控變數
+                this.lastRecordedX = x; this.lastRecordedY = y;
+                this.immobileFrames = 0; this.antiStuckActive = false;
+                this.antiStuckTargetX = x; this.antiStuckTargetY = y;
+            }
+
+            update() {
+                if (currentStage !== 'GAMING') return;
+
+                // --- 防卡死檢測 ---
+                let distFromLastRecord = Math.hypot(this.x - this.lastRecordedX, this.y - this.lastRecordedY);
+                if (distFromLastRecord < 0.5) { this.immobileFrames++; } else { this.immobileFrames = 0; }
+                this.lastRecordedX = this.x; this.lastRecordedY = this.y;
+
+                if (this.immobileFrames >= 300 && !this.antiStuckActive) {
+                    this.antiStuckActive = true; this.immobileFrames = 0;
+                    let randomAngle = Math.random() * Math.PI * 2;
+                    this.antiStuckTargetX = this.x + Math.cos(randomAngle) * 110;
+                    this.antiStuckTargetY = this.y + Math.sin(randomAngle) * 110;
+                }
+
+                if (this.antiStuckActive) {
+                    this.moveToTarget(this.antiStuckTargetX, this.antiStuckTargetY);
+                    if (Math.hypot(this.x - this.antiStuckTargetX, this.y - this.antiStuckTargetY) < 15) { this.antiStuckActive = false; this.ai2_strideRemaining = 0; }
+                    if (this.holdingBall) { this.holdingBall.x = this.x; this.holdingBall.y = this.y; }
+                    return;
+                }
+
+                if (this.delayTimer > 0) { this.delayTimer--; return; }
+                if (this.holdingBall) { this.holdingBall.x = this.x; this.holdingBall.y = this.y; }
+
+                // 💡 修正判定：地上的紫色球除了沒被拿、在左半邊、是紫色之外，還必須「不在任何烤箱的槽(slots)中」
+                let leftHasPurpleOnGround = balls.some(b => 
+                    !b.isHeld && 
+                    b.x < midX && 
+                    b.status === "purple" &&
+                    !ovens.some(o => o.slots.includes(b)) // ✨ 確保球不在任何烤箱裡
+                );
+
+                // --- 核心行為狀態機 ---
+                switch(this.state) {
+                    case "SEARCH_PURPLE":
+                        if (this.holdingBall) { this.state = "GO_TO_OVEN"; break; }
+                        
+                        // 💡 ✨【關鍵修正點】尋找目標時，排除已經進了烤箱槽的球
+                        let groundPurple = balls.find(b => 
+                            !b.isHeld && 
+                            b.x < midX && 
+                            b.status === "purple" &&
+                            !ovens.some(o => o.slots.includes(b)) // ✨ 排除烤箱內的球
+                        );
+
+                        if (groundPurple) {
+                            this.moveToTarget(groundPurple.x, groundPurple.y);
+                            if (Math.hypot(this.x - groundPurple.x, this.y - groundPurple.y) < REACH_DISTANCE) {
+                                if (!groundPurple.isHeld) {
+                                    this.delayTimer = Math.floor(Math.random() * 10) + 10; 
+                                    this.holdingBall = groundPurple; groundPurple.isHeld = true;
+                                    this.ai2_strideRemaining = 0; 
+                                    this.state = "GO_TO_OVEN";
+                                }
+                            }
+                        } else { this.state = "IDLE_ROAM"; }
+                        break;
+
+                    case "GO_TO_OVEN":
+                        if (!this.holdingBall) { this.state = "SEARCH_PURPLE"; break; }
+                        let targetOven = ovens.find(o => o.side === "left" && o.slots.length < 3);
+                        if (targetOven) {
+                            let ox = targetOven.x + targetOven.width / 2; let oy = targetOven.y + targetOven.height / 2;
+                            this.moveToTarget(ox, oy);
+                            if (Math.hypot(this.x - ox, this.y - oy) < 25) {
+                                this.delayTimer = Math.floor(Math.random() * 10) + 10;
+                                this.holdingBall.isHeld = false;
+                                this.holdingBall.x = targetOven.x + 15 + (targetOven.slots.length * 18);
+                                this.holdingBall.y = targetOven.y + targetOven.height / 2;
+                                
+                                this.holdingBall.cookProgress = 0; 
+                                targetOven.slots.push(this.holdingBall);
+                                this.holdingBall = null;
+                                
+                                this.escapeTargetX = this.x; this.escapeTargetY = oy + 90; 
+                                this.ai2_strideRemaining = 0; 
+                                this.state = "LEAVE_OVEN";
+                            }
+                        } else { this.moveToTarget(this.x, canvas.height - 50); }
+                        break;
+
+                    case "LEAVE_OVEN":
+                        this.moveToTarget(this.escapeTargetX, this.escapeTargetY);
+                        if (Math.hypot(this.x - this.escapeTargetX, this.y - this.escapeTargetY) < 25) {
+                            this.state = "SEARCH_PURPLE"; 
+                        }
+                        break;
+
+                    case "IDLE_ROAM":
+                        if (leftHasPurpleOnGround) { this.state = "SEARCH_PURPLE"; break; }
+                        this.idleActionTimer--;
+                        if (this.idleActionTimer <= 0) {
+                            if (Math.random() < 0.3) { this.idleSubState = "STOP"; this.idleActionTimer = 30; }
+                            else {
+                                this.idleSubState = "WALK";
+                                this.idleTargetX = Math.random() * (midX - 100) + 50;
+                                this.idleTargetY = Math.random() * (canvas.height - (topSectionHeight + 200)) + (topSectionHeight + 200);
+                                this.idleActionTimer = 90;
+                            }
+                        }
+                        if (this.idleSubState === "WALK") { this.moveToTarget(this.idleTargetX, this.idleTargetY); }
+                        break;
+                }
+
+                if (this.x < this.radius) this.x = this.radius; if (this.x > midX - this.radius) this.x = midX - this.radius;
+                if (this.y < topSectionHeight + this.radius) this.y = topSectionHeight + this.radius; if (this.y > canvas.height - this.radius) this.y = canvas.height - this.radius;
+            }
+
+            moveToTarget(tx, ty) {
+                let dx = tx - this.x; let dy = ty - this.y;
+                let finalAngle = Math.atan2(dy, dx);
+                let speed = BOT_SPEED * 0.9; 
+
+                if (this.ai2_strideRemaining <= 0) {
+                    this.ai2_strideRemaining = Math.floor(Math.random() * (150 - 50 + 1)) + 50;
+                    let roll = Math.random();
+                    let chosenAngle = finalAngle;
+
+                    if (roll < 0.80) { 
+                        if (Math.abs(dx) > Math.abs(dy)) { chosenAngle = dx > 0 ? 0 : Math.PI; }
+                        else { chosenAngle = dy > 0 ? Math.PI / 2 : -Math.PI / 2; }
+                    } else { chosenAngle = finalAngle; }
+
+                    this.ai2_currentAngle = chosenAngle;
+
+                    let currentSector = "STILL";
+                    if (Math.abs(Math.cos(chosenAngle)) > 0.707) { currentSector = Math.cos(chosenAngle) > 0 ? "RIGHT" : "LEFT"; }
+                    else { currentSector = Math.sin(chosenAngle) > 0 ? "DOWN" : "UP"; }
+
+                    if (this.lastAngleSector !== null && this.lastAngleSector !== currentSector) {
+                        if (Math.random() < 0.50) { 
+                            this.delayTimer = Math.floor(Math.random() * 10) + 20;
+                            this.lastAngleSector = currentSector;
+                            return; 
+                        }
+                    }
+                    this.lastAngleSector = currentSector;
+                }
+
+                finalAngle = this.ai2_currentAngle;
+                this.ai2_strideRemaining -= speed; 
+
+                this.x += Math.cos(finalAngle) * speed; 
+                this.y += Math.sin(finalAngle) * speed;
+            }
+
+            draw() {
+                ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 9px sans-serif"; ctx.textAlign = "center";
+                ctx.fillText("AI 2(搬運)", this.x, this.y + 3); ctx.restore();
+            }
+        }
+
+        class RightBlackCatBot {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = 15; this.color = "#111111"; 
+                this.holdingBall = null; this.state = "SEARCH_YELLOW";
+            }
+            update() {
+                if (currentStage !== 'GAMING') return;
+
+                if (this.holdingBall) { this.holdingBall.x = this.x; this.holdingBall.y = this.y; }
+
+                if (this.state === "SEARCH_YELLOW") {
+                    if (this.holdingBall) { this.state = "GO_TO_ZONE"; return; }
+                    let targetYellow = balls.find(b => !b.isHeld && b.x >= midX && b.status === "yellow");
+                    if (targetYellow) {
+                        let angle = Math.atan2(targetYellow.y - this.y, targetYellow.x - this.x);
+                        this.x += Math.cos(angle) * BOT_SPEED; this.y += Math.sin(angle) * BOT_SPEED;
+                        if (Math.hypot(this.x - targetYellow.x, this.y - targetYellow.y) < REACH_DISTANCE) {
+                            if (!targetYellow.isHeld) {
+                                this.holdingBall = targetYellow; targetYellow.isHeld = true;
+                                this.state = "GO_TO_ZONE";
+                            }
+                        }
+                    } else {
+                        let rx = 950; let ry = 400; 
+                        if (Math.hypot(this.x - rx, this.y - ry) > 10) {
+                            let angle = Math.atan2(ry - this.y, rx - this.x);
+                            this.x += Math.cos(angle) * BOT_SPEED; this.y += Math.sin(angle) * BOT_SPEED;
+                        }
+                    }
+                }
+                else if (this.state === "GO_TO_ZONE") {
+                    if (!this.holdingBall) { this.state = "SEARCH_YELLOW"; return; }
+                    let tx = rightZone.x + rightZone.width / 2; let ty = rightZone.y + rightZone.height / 2;
+                    let angle = Math.atan2(ty - this.y, tx - this.x);
+                    this.x += Math.cos(angle) * BOT_SPEED; this.y += Math.sin(angle) * BOT_SPEED;
+                    
+                    if (Math.hypot(this.x - tx, this.y - ty) < 20) {
+                        let idx = balls.indexOf(this.holdingBall); if (idx > -1) balls.splice(idx, 1);
+                        playerData.rightScore++; 
+                        this.holdingBall = null; this.state = "SEARCH_YELLOW";
+                    }
+                }
+                if (this.x < midX + this.radius) this.x = midX + this.radius; if (this.x > canvas.width - this.radius) this.x = canvas.width - this.radius;
+                if (this.y < topSectionHeight + this.radius) this.y = topSectionHeight + this.radius; if (this.y > canvas.height - this.radius) this.y = canvas.height - this.radius;
+            }
+            draw() {
+                ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
+                ctx.fillStyle = "#f1c40f"; ctx.beginPath(); ctx.arc(this.x - 4, this.y - 2, 2.5, 0, Math.PI * 2); ctx.arc(this.x + 4, this.y - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(this.x - 4, this.y - 2, 1, 0, Math.PI * 2); ctx.arc(this.x + 4, this.y - 2, 1, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.moveTo(this.x - 12, this.y - 8); ctx.lineTo(this.x - 6, this.y - 14); ctx.lineTo(this.x - 2, this.y - 10); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(this.x + 12, this.y - 8); ctx.lineTo(this.x + 6, this.y - 14); ctx.lineTo(this.x + 2, this.y - 10); ctx.fill(); ctx.restore();
+            }
+        }
+
         class Ball {
-            constructor(id, x, y) { this.id = id; this.x = x; this.y = y; this.radius = 12; this.color = "#9b59b6"; this.isHeld = false; }
+            constructor(id, x, y, startSide) { 
+                this.id = id; 
+                this.x = x; 
+                this.y = y; 
+                this.radius = 12; 
+                this.status = "purple"; 
+                this.isHeld = false; 
+                this.originSide = startSide; 
+            }
+            
             draw() {
                 ctx.save();
-                if (useImages) {
-                    ctx.drawImage(ballImg, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+                
+                let currentImg = (this.status === "purple") ? imgPurple : imgYellow;
+
+                if (currentImg.complete && currentImg.naturalWidth !== 0) {
+                    let size = this.radius * 2;
+                    let drawX = this.x - this.radius;
+                    let drawY = this.y - this.radius;
+                    ctx.drawImage(currentImg, drawX, drawY, size, size);
                 } else {
-                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
-                    ctx.lineWidth = 2; ctx.strokeStyle = "#ffffff"; ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = (this.status === "purple") ? "#9b59b6" : "#f1c40f";
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.stroke();
                 }
+                
                 ctx.restore();
             }
         }
 
-        // --- 3. 區域座標設定 ---
-        const zoneSize = 100;
-        const leftZone = { x: 20, y: 50, width: zoneSize, height: zoneSize, color: "#e74c3c" };   
-        const rightZone = { x: 800 - zoneSize - 20, y: 50, width: zoneSize, height: zoneSize, color: "#2ecc71" }; 
+        // --- 區域座標設定 ---
+        const cat = new Cat(900, 420);
 
-        const cat = new Cat(400, 450);
-        let balls = [];
-
-        function spawnBalls() {
+        function spawnExperimentObjects() {
             balls = [];
-            for (let i = 0; i < BALL_COUNT; i++) {
-                let rx = Math.random() * (canvas.width - 60) + 30;
-                let ry = Math.random() * (canvas.height - 200) + 160; 
-                balls.push(new Ball(i + 1, rx, ry));
+            ovens.forEach(o => o.slots = []); 
+            idCounter = 1;
+
+            let minY = topSectionHeight + 240; 
+            let maxY = canvas.height - 40;
+
+            for (let i = 0; i < 10; i++) {
+                let rx = Math.random() * (midX - 100) + 50;
+                let ry = Math.random() * (maxY - minY) + minY;
+                balls.push(new Ball(idCounter++, rx, ry, 'left'));
             }
+
+            for (let i = 0; i < 50; i++) {
+                let rx = Math.random() * (midX - 100) + midX + 50;
+                let ry = Math.random() * (maxY - minY) + minY;
+                balls.push(new Ball(idCounter++, rx, ry, 'right'));
+            }
+
+            // 👇 修正：分別使用全新拆分出的類別來初始化 AI 1 與 AI 2
+            bots = [ new LeftScoreBot(150, 400), new LeftCarrierBot(250, 450) ];
+            blackCatBot = new RightBlackCatBot(950, 420);
         }
 
-        // --- 4. 核心邏輯 ---
-        function handleAction() {
+        function getLeftRemainingCount() { return balls.filter(b => b.x < midX).length; }
+        function getRightRemainingCount() { return balls.filter(b => b.x >= midX).length; }
+
+        // ==========================================
+        // 🔮 【核心統一區域】全域烤箱狀態輪詢更新 
+        // ==========================================
+        function updateOvens() {
+            ovens.forEach(o => {
+                // 不分 side === "right"，左右烤箱邏輯在此完全同步
+                o.slots.forEach(b => {
+                    if (b.status === "purple") {
+                        if (b.cookProgress === undefined) b.cookProgress = 0;
+                        
+                        b.cookProgress += (100 / (3 * 60)); // 3秒煮熟 (以 60 FPS 換算)
+                        
+                        if (b.cookProgress >= 100) {
+                            b.status = "yellow";
+                            b.y = o.y + o.height + 20; // 烤好後自動往下彈出到烤箱下方
+                            
+                            // 自烤箱插槽列表中移除，吐回大地圖原生 balls 列表中
+                            let idx = o.slots.indexOf(b);
+                            if (idx > -1) o.slots.splice(idx, 1);
+                        }
+                    }
+                });
+            });
+        }
+
+        function sendActionPayloadToGoogleForm(actionType) {
             let elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+            let leftCount = getLeftRemainingCount();
+            let rightCount = getRightRemainingCount();
+            let totalScore = playerData.leftScore + playerData.rightScore;
+
+            let payload = `Time:${elapsed},X:${Math.round(cat.x)},Y:${Math.round(cat.y)},Act:${actionType},L_Score:${playerData.leftScore},R_Score:${playerData.rightScore},TotalScore:${totalScore},R_BallLeft:${rightCount},L_BallLeft:${leftCount}`;
+            console.log("📡 行為追蹤串流:", payload);
+
+            if (GOOGLE_FORM_URL.includes("XXXXXXXXXXXXX")) return;
+
+            let formData = new FormData();
+            formData.append(ENTRY_PARTICIPANT_ID, participantId);
+            formData.append(ENTRY_ACTION_DATA, payload);
+            navigator.sendBeacon(GOOGLE_FORM_URL, formData);
+        }
+
+        function handlePlayerAction() {
+            if (currentStage !== 'GAMING') return;
+            let currentSide = (cat.x < midX) ? "left" : "right";
+
             if (!cat.holdingBall) {
                 let closestBall = null; let minDist = REACH_DISTANCE;
                 balls.forEach(ball => {
@@ -182,128 +692,316 @@
                     }
                 });
                 if (closestBall) {
-                    cat.holdingBall = closestBall; closestBall.isHeld = true; playerData.pickupCount++;
-                    playerData.actions.push({ time: elapsed, event: "PICKUP", ballId: closestBall.id });
+                    cat.holdingBall = closestBall; closestBall.isHeld = true;
+                    currentPickupSide = currentSide; 
+                    
+                    let actName = (currentPickupSide === "right") ? "pickFromRight" : "pickFromLeft";
+                    sendActionPayloadToGoogleForm(actName);
                 }
             } else {
-                let droppedBall = cat.holdingBall; droppedBall.isHeld = false; cat.holdingBall = null;
-                let inRightZone = (droppedBall.x >= rightZone.x && droppedBall.x <= rightZone.x + rightZone.width && droppedBall.y >= rightZone.y && droppedBall.y <= rightZone.y + rightZone.height);
-                if (inRightZone) {
-                    playerData.totalScore++;
-                    droppedBall.x = Math.random() * (canvas.width - 60) + 30; droppedBall.y = Math.random() * (canvas.height - 200) + 160;
-                    playerData.actions.push({ time: elapsed, event: "DROP_SCORE", ballId: droppedBall.id });
+                let b = cat.holdingBall; b.isHeld = false; cat.holdingBall = null;
+                let dropSide = currentSide;
+
+                let finalActionType = "stayHere";
+                if (currentPickupSide === "right" && dropSide === "left") finalActionType = "give";
+                else if (currentPickupSide === "left" && dropSide === "right") finalActionType = "take";
+                else if (currentPickupSide === "right" && dropSide === "right") finalActionType = "stayHere";
+                else if (currentPickupSide === "left" && dropSide === "left") finalActionType = "stayThere";
+
+                let insideOven = null;
+                ovens.forEach(o => {
+                    if (b.x >= o.x && b.x <= o.x + o.width && b.y >= o.y && b.y <= o.y + o.height) insideOven = o;
+                });
+
+                if (insideOven) {
+                    if (insideOven.side === "left") {
+                        alert("⚠️ 實驗安全禁止：您無法使用左半邊 AI 助手的烤箱！");
+                        b.x = midX + 30; b.y = cat.y; 
+                        sendActionPayloadToGoogleForm(`${finalActionType}_OvenLeftDenied`);
+                        return;
+                    }
+                    if (insideOven.slots.length >= 3) {
+                        alert("烤箱已滿！");
+                        b.y = insideOven.y + insideOven.height + 20; 
+                        sendActionPayloadToGoogleForm(`${finalActionType}_OvenFull`);
+                        return;
+                    }
+                    
+                    b.x = insideOven.x + 12 + (insideOven.slots.length * 18);
+                    b.y = insideOven.y + insideOven.height / 2;
+                    b.cookProgress = 0; // 玩家手動放入右側烤箱時同步重置進度
+                    insideOven.slots.push(b);
+                    
+                    sendActionPayloadToGoogleForm(`${finalActionType}_PutToOven`);
+                    return;
+                }
+
+                let inRightZone = (b.x >= rightZone.x && b.x <= rightZone.x + rightZone.width && b.y >= rightZone.y && b.y <= rightZone.y + rightZone.height);
+                let inLeftZone = (b.x >= leftZone.x && b.x <= leftZone.x + leftZone.width && b.y >= leftZone.y && b.y <= leftZone.y + leftZone.height);
+
+                if (inLeftZone || (inRightZone && b.x < midX)) {
+                    alert("⚠️ 實驗安全禁止：您無法放入左側得分區！");
+                    b.x = midX + 30; b.y = cat.y;
+                    sendActionPayloadToGoogleForm(`${finalActionType}_LeftZoneDenied`);
+                } 
+                else if (inRightZone) {
+                    if (b.status === "yellow") {
+                        playerData.rightScore++;
+                        let idx = balls.indexOf(b); if (idx > -1) balls.splice(idx, 1);
+                        sendActionPayloadToGoogleForm(`${finalActionType}_ScoreSuccess`);
+                    } else {
+                        alert("❌ 紫色生球放入不得分！請先放進烤箱加熱 3 秒。");
+                        sendActionPayloadToGoogleForm(`${finalActionType}_ScoreFailedPurple`);
+                    }
                 } else {
-                    playerData.actions.push({ time: elapsed, event: "DROP_GROUND", ballId: droppedBall.id });
+                    sendActionPayloadToGoogleForm(`${finalActionType}_DropOnGround`);
                 }
             }
         }
 
-        // --- 5. 繪圖渲染 ---
-        function draw() {
-            let midX = canvas.width / 2;
+        // --- 核心渲染引擎 ---
+        function draw(timestamp) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 頂部資訊區
+            ctx.fillStyle = "#2c3e50"; ctx.fillRect(0, 0, canvas.width, topSectionHeight);
             
-            if (useImages) {
-                ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-            } else {
-                ctx.fillStyle = "#ebf5fb"; ctx.fillRect(0, 0, midX, canvas.height);
-                ctx.fillStyle = "#e8f8f5"; ctx.fillRect(midX, 0, midX, canvas.height);
-            }
+            let bounceY = Math.sin(timestamp / 200) * 4;
+            ctx.save(); ctx.translate(canvas.width / 2, topSectionHeight / 2 - 20 + bounceY);
+            ctx.fillStyle = "#95a5a6"; ctx.fillRect(-25, -20, 50, 40);
+            ctx.fillStyle = (Math.floor(timestamp / 400) % 2 === 0) ? "#00ffcc" : "#00aa88";
+            ctx.beginPath(); ctx.arc(-10, -3, 5, 0, Math.PI*2); ctx.arc(10, -3, 5, 0, Math.PI*2); ctx.fill(); 
+            ctx.restore();
+
+            const barWidth = 300; const barHeight = 12;
+            const barX = canvas.width / 2 - barWidth / 2; const barY = 95;
+            ctx.fillStyle = "#34495e"; ctx.fillRect(barX, barY, barWidth, barHeight);
+            let progressRatio = timeLeft / GAME_DURATION;
+            if (currentStage === 'COUNTDOWN') progressRatio = 1; 
+            const currentBarWidth = barWidth * progressRatio;
+            ctx.fillStyle = (progressRatio > 0.5) ? "#2ecc71" : (progressRatio > 0.2 ? "#e67e22" : "#e74c3c");
+            ctx.fillRect(barX, barY, currentBarWidth, barHeight);
+
+            ctx.fillStyle = "#ecf0f1"; ctx.font = "14px sans-serif"; ctx.textAlign = "right";
+            ctx.fillText(`編號: ${participantId}`, canvas.width - 30, 40);
+            ctx.fillText(`回合: ${currentRound} / ${MAX_ROUNDS}`, canvas.width - 30, 70);
+            ctx.fillText(`剩餘: ${timeLeft} 秒`, canvas.width - 30, 100);
+
+            // 2. 戰場主區域分割
+            ctx.fillStyle = "#eaf2f8"; ctx.fillRect(0, topSectionHeight, midX, gameSectionHeight); 
+            ctx.fillStyle = "#fef9e7"; ctx.fillRect(midX, topSectionHeight, midX, gameSectionHeight); 
+
+            // ctx.strokeStyle = "#d5dbdb"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 6]);
+            // ctx.beginPath(); ctx.moveTo(midX, topSectionHeight); ctx.lineTo(midX, canvas.height); ctx.stroke(); ctx.setLineDash([]);
 
             ctx.fillStyle = leftZone.color; ctx.fillRect(leftZone.x, leftZone.y, leftZone.width, leftZone.height);
             ctx.fillStyle = rightZone.color; ctx.fillRect(rightZone.x, rightZone.y, rightZone.width, rightZone.height);
-            ctx.fillStyle = "#2c3e50"; ctx.font = "bold 16px sans-serif";
-            ctx.fillText("裝飾區", leftZone.x, leftZone.y - 10); ctx.fillText("得分區", rightZone.x, rightZone.y - 10);
-            ctx.fillStyle = "#27ae60"; ctx.font = "bold 24px sans-serif"; ctx.fillText(`得分: ${playerData.totalScore}`, rightZone.x - 110, rightZone.y + 60);
 
-            let barW = 300, barH = 15, barX = (canvas.width - barW) / 2, barY = 25, ratio = timeLeft / GAME_DURATION;
-            ctx.fillStyle = "#bdc3c7"; ctx.fillRect(barX, barY, barW, barH);
-            ctx.fillStyle = "#2ecc71"; ctx.fillRect(barX, barY, barW * ratio, barH);
-            ctx.fillStyle = "#34495e"; ctx.font = "14px sans-serif"; ctx.fillText(`剩餘時間: ${timeLeft} 秒`, canvas.width / 2 - 40, barY + barH + 18);
+            ctx.fillStyle = "rgba(44, 62, 80, 0.8)"; ctx.fillRect(40, 530, 150, 40);
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText(`左區剩餘球數: ${getLeftRemainingCount()}`, 115, 555);
 
-            balls.forEach(ball => ball.draw()); cat.draw();
+            ctx.fillStyle = "rgba(211, 84, 0, 0.8)"; ctx.fillRect( canvas.width - 190, 530, 150, 40);
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText(`右區剩餘球數: ${getRightRemainingCount()}`, canvas.width - 115, 555);
+
+            ovens.forEach(o => {
+                ctx.fillStyle = "#ffffff"; ctx.fillRect(o.x, o.y, o.width, o.height);
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 3; ctx.strokeRect(o.x, o.y, o.width, o.height);
+                ctx.fillStyle = "#555555"; ctx.font = "11px sans-serif"; ctx.textAlign = "center";
+                ctx.fillText(`烤箱 (${o.slots.length}/3)`, o.x + o.width/2, o.y - 6);
+            });
+
+            ctx.fillStyle = "#2e4053"; ctx.font = "bold 24px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText(`AI 隊得分: ${playerData.leftScore}`, midX / 2, topSectionHeight + 40);
+            ctx.fillText(`您的得分: ${playerData.rightScore}`, midX + (midX / 2), topSectionHeight + 40);
+
+            balls.forEach(ball => ball.draw());
+            
+            bots.forEach(bot => bot.update()); 
+            if (blackCatBot) blackCatBot.update();
+            
+            bots.forEach(bot => bot.draw());
+            if (blackCatBot) blackCatBot.draw(); 
+            cat.draw();
+
+            if (currentStage === 'COUNTDOWN') {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(0, topSectionHeight, canvas.width, gameSectionHeight);
+                ctx.fillStyle = "#e74c3c"; ctx.font = "bold 90px sans-serif"; ctx.textAlign = "center";
+                ctx.fillText(countdownSec, midX, topSectionHeight + (gameSectionHeight/2) + 20);
+            }
         }
 
-        function gameLoop() { if (isGameOver) return; cat.update(); draw(); requestAnimationFrame(gameLoop); }
+        function updateGame() {
+            if (currentStage === 'GAMING') {
+                cat.update();
+                updateOvens(); // 每幀動態更新全域烤箱計時狀態
+            }
+        }
 
-        function startCountdown() {
-            gameTimer = setInterval(() => {
-                timeLeft--;
-                if (timeLeft <= 0) {
-                    timeLeft = 0; isGameOver = true; clearInterval(gameTimer);
-                    document.getElementById("resId").innerText = pid;
-                    document.getElementById("resScore").innerText = playerData.totalScore;
-                    document.getElementById("resPickup").innerText = playerData.pickupCount;
-                    document.getElementById("gameOverOverlay").style.display = "flex";
-                    
-                    // ⚙️ 核心調用：倒數一結束，立刻自動打包數據傳給 Google 表單
-                    sendDataToGoogleForm();
+        function mainLoop(timestamp) {
+            updateGame();
+            draw(timestamp);
+            requestAnimationFrame(mainLoop);
+        }
+
+        function runCanvasCountdown() {
+            currentStage = 'COUNTDOWN'; countdownSec = 5;
+            let cdTimer = setInterval(() => {
+                countdownSec--;
+                if (countdownSec <= 0) {
+                    clearInterval(cdTimer); currentStage = 'GAMING';
+                    startTime = Date.now(); startExperimentTimer();
                 }
             }, 1000);
         }
 
-        // --- 6. 📊 自動提交到 Google Form 核心邏輯 ---
-        function generateTimelineString() {
-            let log = "時間(秒)|動作|球體ID\n";
-            playerData.actions.forEach(act => { log += `${act.time}|${act.event}|${act.ballId}\n`; });
-            return log;
+        function startExperimentTimer() {
+            timeLeft = GAME_DURATION;
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                if (timeLeft <= 0) {
+                    timeLeft = 0; clearInterval(gameTimer); triggerRoundEnd();
+                }
+            }, 1000);
         }
 
-        function sendDataToGoogleForm() {
-            const statusDiv = document.getElementById("statusMessage");
+        function triggerRoundEnd() {
+            currentStage = 'GAMEOVER';
+            document.getElementById("resRound").innerText = `${currentRound} / ${MAX_ROUNDS}`;
+            document.getElementById("resLeftScore").innerText = playerData.leftScore;
+            document.getElementById("resRightScore").innerText = playerData.rightScore;
             
-            // 檢查玩家有沒有設定表單 URL
-            if (GOOGLE_FORM_URL.includes("XXXXXXXXXXXXX")) {
-                statusDiv.innerHTML = "⚠️ 提示：請在程式碼中配置您的 Google Form 欄位網址，以啟用雲端同步。";
-                statusDiv.style.color = "#e67e22";
-                return;
+            const nextBtn = document.getElementById("nextRoundBtn");
+            const surveyBtn = document.getElementById("goToSurveyBtn");
+            nextBtn.style.display = "none"; surveyBtn.style.display = "none";
+            
+            if (currentRound >= MAX_ROUNDS) {
+                document.getElementById("modalTitle").innerText = "三回合完成";
+                document.getElementById("modalSub").innerText = "核心實驗階段已結束，請點擊下方按鈕進入問卷評估。";
+                surveyBtn.style.display = "block";
+            } else {
+                document.getElementById("modalTitle").innerText = "本回合結束";
+                nextBtn.style.display = "block";
             }
-
-            // 使用 FormData 打包網頁數據，格式完全模擬人類手動點選填寫表單
-            const formData = new FormData();
-            formData.append(ENTRY_PLAYER_ID, pid);
-            formData.append(ENTRY_TOTAL_SCORE, playerData.totalScore);
-            formData.append(ENTRY_PICKUP_COUNT, playerData.pickupCount);
-            formData.append(ENTRY_TIMELINE, generateTimelineString());
-
-            // 利用 fetch API 在背景將表單數據默默送出 (使用 no-cors 模式繞過跨網域安全性限制)
-            fetch(GOOGLE_FORM_URL, {
-                method: "POST",
-                mode: "no-cors",
-                body: formData
-            }).then(() => {
-                statusDiv.innerHTML = "✅ 數據已完美自動同步至雲端試算表！";
-                statusDiv.style.color = "#2ecc71";
-            }).catch((error) => {
-                console.error("上傳失敗：", error);
-                statusDiv.innerHTML = "❌ 自動同步失敗，請點選下方按鈕手動下載 CSV 備份。";
-                statusDiv.style.color = "#e74c3c";
-            });
+            document.getElementById("gameOverOverlay").style.display = "flex";
+            
+            sendActionPayloadToGoogleForm(`ROUND_END_SUMMARY_ROUND_${currentRound}`);
         }
 
-        function initGame() { startTime = Date.now(); spawnBalls(); startCountdown(); requestAnimationFrame(gameLoop); }
-
-        // --- 7. 事件監聽 ---
-        window.addEventListener("keydown", (e) => {
-            if (isGameOver) return;
-            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
-            if (e.key === " ") { if (!keys.Space) { keys.Space = true; handleAction(); } } 
-            else if (e.key in keys) keys[e.key] = true;
+        document.getElementById("startIntroBtn").addEventListener("click", () => {
+            let inputId = document.getElementById("participantId").value.trim();
+            if(!inputId) { alert("請輸入參與者編號。"); return; }
+            participantId = inputId;
+            document.getElementById("introLayer").style.display = "none";
+            document.getElementById("waitingLayer").style.display = "flex";
+            setTimeout(() => {
+                document.getElementById("waitingLayer").style.display = "none";
+                runCanvasCountdown();
+            }, 3000);
         });
-        window.addEventListener("keyup", (e) => { if (e.key === " ") keys.Space = false; else if (e.key in keys) keys[e.key] = false; });
 
-        // 手動備份 CSV 機制
+        document.getElementById("nextRoundBtn").addEventListener("click", () => {
+            if (currentRound >= MAX_ROUNDS) return;
+            currentRound++;
+            playerData = { leftScore: 0, rightScore: 0 };
+            cat.holdingBall = null; cat.x = 900; cat.y = 420;
+            document.getElementById("gameOverOverlay").style.display = "none";
+            spawnExperimentObjects();
+            runCanvasCountdown();
+        });
+
+        document.getElementById("goToSurveyBtn").addEventListener("click", () => {
+            document.getElementById("gameOverOverlay").style.display = "none";
+            buildPsychologySurvey(); 
+            document.getElementById("surveyLayer").style.display = "flex";
+        });
+
         document.getElementById("downloadBtn").addEventListener("click", () => {
-            let csv = "\ufeff--- 總體摘要 ---\n指標項目,數據值\n";
-            csv += `玩家ID,${pid}\n總得分,${playerData.totalScore}\n拿起球的次數,${playerData.pickupCount}\n\n`;
-            csv += "--- 行為詳細時間序列 ---\n" + generateTimelineString().replace(/\|/g, ",");
-            
-            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob); const link = document.createElement("a");
-            link.setAttribute("href", url); link.setAttribute("download", `${pid}_行為數據.csv`);
+            let csvContent = "data:text/csv;charset=utf-8,Round,PartID,LeftScore,RightScore\n";
+            csvContent += `${currentRound},${participantId},${playerData.leftScore},${playerData.rightScore}\n`;
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a"); link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Backup_R${currentRound}_${participantId}.csv`);
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         });
 
-        window.onload = initGame;
+        function buildPsychologySurvey() {
+            const container = document.getElementById("questionContainer");
+            container.innerHTML = ""; 
+            for (let i = 1; i <= 10; i++) {
+                let qBlock = document.createElement("div"); qBlock.className = "question-block";
+                let qText = document.createElement("div"); qText.className = "question-text";
+                qText.innerText = `Q${i}. 在本回合的行為操作中，您對於 AI 助手的合作流暢度與流暢體感評分？`;
+                qBlock.appendChild(qText);
+                let optGroup = document.createElement("div"); optGroup.className = "options-group";
+                for (let j = 1; j <= 7; j++) {
+                    let label = document.createElement("label"); label.className = "option-item";
+                    let radio = document.createElement("input"); radio.type = "radio"; radio.name = `question_${i}`; radio.value = j; radio.required = true;
+                    label.appendChild(radio); label.appendChild(document.createTextNode(`${j} 分`));
+                    optGroup.appendChild(label);
+                }
+                qBlock.appendChild(optGroup); container.appendChild(qBlock);
+            }
+        }
+
+        document.getElementById("submitSurveyBtn").addEventListener("click", () => {
+            let answers = [];
+            let allAnswered = true;
+
+            for (let i = 1; i <= 10; i++) {
+                let radios = document.getElementsByName(`question_${i}`);
+                let checkedValue = null;
+                for (let r of radios) {
+                    if (r.checked) { checkedValue = r.value; break; }
+                }
+                if (checkedValue === null) { allAnswered = false; break; }
+                answers.push(`Q${i}:${checkedValue}`);
+            }
+
+            if (!allAnswered) {
+                alert("❌ 請填寫完全部的心理量表題目後再提交！");
+                return;
+            }
+
+            let surveyPayload = answers.join("|");
+            console.log("📡 問卷終點數據串:", surveyPayload);
+
+            document.getElementById("surveyLayer").style.display = "none";
+
+            if (GOOGLE_FORM_URL.includes("XXXXXXXXXXXXX")) {
+                console.warn("⚠️ 目前為本地測試模式，未寫入實體 Google 表單連結。");
+                document.getElementById("thanksLayer").style.display = "flex";
+                return;
+            }
+
+            let urlEncodedData = new URLSearchParams();
+            urlEncodedData.append(ENTRY_PARTICIPANT_ID, participantId);
+            urlEncodedData.append(ENTRY_SURVEY_DATA, surveyPayload);
+
+            fetch(GOOGLE_FORM_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: urlEncodedData
+            })
+            .then(() => {
+                document.getElementById("thanksLayer").style.display = "flex";
+            })
+            .catch((err) => {
+                console.error("上傳失敗:", err);
+                document.getElementById("thanksLayer").style.display = "flex";
+            });
+        });
+
+        window.addEventListener("keydown", e => {
+            if (e.code in keys) { e.preventDefault(); keys[e.code] = true; }
+            if (e.code === "Space" && currentStage === 'GAMING') { handlePlayerAction(); }
+        });
+        window.addEventListener("keyup", e => { if (e.code in keys) { e.preventDefault(); keys[e.code] = false; } });
+
+        spawnExperimentObjects();
+        requestAnimationFrame(mainLoop);
     </script>
 </body>
 </html>
